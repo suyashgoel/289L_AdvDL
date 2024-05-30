@@ -10,7 +10,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-
+import random 
 import io
 import os
 import time
@@ -162,12 +162,12 @@ class MetricLogger(object):
         
         
 
-def get_training_dataloader(mean, std, batch_size=16, num_workers=2, shuffle=True):
+def get_training_dataloader(mean, std, batch_size=16, num_workers=2, shuffle=True, shots=10):
     """ return training dataloader
     Args:
-        mean: mean of cifar100 training dataset
-        std: std of cifar100 training dataset
-        path: path to cifar100 training python dataset
+        mean: mean of cifar10 training dataset
+        std: std of cifar10 training dataset
+        path: path to cifar10 training python dataset
         batch_size: dataloader batchsize
         num_workers: dataloader num_works
         shuffle: whether to shuffle
@@ -183,19 +183,32 @@ def get_training_dataloader(mean, std, batch_size=16, num_workers=2, shuffle=Tru
         transforms.ToTensor(),
         transforms.Normalize(mean, std)
     ])
-    #cifar100_training = CIFAR100Train(path, transform=transform_train)
-    cifar100_training = torchvision.datasets.CIFAR100(root='./data', train=True, download=True, transform=transform_train)
-    cifar100_training_loader = DataLoader(
-        cifar100_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
+    cifar10_training = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
+    num_classes = 10 
+    
+    cls2index = [[] for _ in range(num_classes)]
 
-    return cifar100_training_loader
+    for index, label in enumerate(cifar10_training.targets): 
+        cls2index[label].append(index)
+        
+    few_shot_samples = []
+    for t in range(num_classes): 
+        samples = random.sample(cls2index[t], shots)
+        few_shot_samples += samples
+    
+    cifar10_training.data = [cifar10_training.data[i] for i in few_shot_samples]
+    cifar10_training.targets = [cifar10_training.targets[i] for i in few_shot_samples]
+    cifar10_training_loader = DataLoader(
+        cifar10_training, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
+
+    return cifar10_training_loader
 
 def get_test_dataloader(mean, std, batch_size=16, num_workers=2, shuffle=True):
     """ return training dataloader
     Args:
-        mean: mean of cifar100 test dataset
-        std: std of cifar100 test dataset
-        path: path to cifar100 test python dataset
+        mean: mean of cifar10 test dataset
+        std: std of cifar10 test dataset
+        path: path to cifar10 test python dataset
         batch_size: dataloader batchsize
         num_workers: dataloader num_works
         shuffle: whether to shuffle
@@ -207,11 +220,11 @@ def get_test_dataloader(mean, std, batch_size=16, num_workers=2, shuffle=True):
         transforms.ToTensor(),
         transforms.Normalize(mean, std)
     ])
-    #cifar100_test = CIFAR100Test(path, transform=transform_test)
-    cifar100_test = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_test)
-    cifar100_test_loader = DataLoader(
-        cifar100_test, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
 
-    return cifar100_test_loader
+    cifar10_test = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
+    cifar10_test_loader = DataLoader(
+        cifar10_test, shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
+
+    return cifar10_test_loader
 
 

@@ -9,6 +9,7 @@ from timm.data import Mixup
 from timm.utils import accuracy, ModelEma
 
 import utils
+import torch.nn.functional as F
 
 
 def train_one_epoch(model, criterion,
@@ -28,6 +29,45 @@ def train_one_epoch(model, criterion,
             outputs = model(samples)
             loss = criterion(outputs, targets)
 
+        loss_value = loss.item()
+
+        if not math.isfinite(loss_value):
+            print("Loss is {}, stopping training".format(loss_value))
+            sys.exit(1)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        torch.cuda.synchronize()
+        metric_logger.update(loss=loss_value)
+
+    print("Averaged stats:", metric_logger)
+    return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+
+def train_one_epoch_distillation(teacher, student, criterion,
+                    data_loader, optimizer,
+                    device: torch.device, epoch, alpha=1.0, temp=1.0):
+    teacher.eval()
+    student.train()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = 'Epoch: [{}]'.format(epoch)
+    print_freq = 100
+    kl_loss = torch.nn.KLDivLoss(reduction="batchmean")
+
+    for samples, targets in metric_logger.log_every(data_loader, print_freq, header):
+        samples = samples.to(device, non_blocking=True)
+        targets = targets.to(device, non_blocking=True)
+
+           
+        with torch.cuda.amp.autocast():
+            outputs = student(samples)
+            outputs_teacher = teacher(samples)
+            
+            # Imeplemet knowledge distillation loss here
+            
+            
+            # *****************************************
         loss_value = loss.item()
 
         if not math.isfinite(loss_value):
