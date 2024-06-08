@@ -29,6 +29,7 @@ def train_one_epoch(model, criterion,
             outputs = model(samples)
             loss = criterion(outputs, targets)
 
+        acc = accuracy(outputs, targets, topk=(1))
         loss_value = loss.item()
 
         if not math.isfinite(loss_value):
@@ -41,6 +42,7 @@ def train_one_epoch(model, criterion,
 
         torch.cuda.synchronize()
         metric_logger.update(loss=loss_value)
+        metric_logger.meters['acc'].update(acc.item(), n=batch_size)
 
     print("Averaged stats:", metric_logger)
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
